@@ -14,6 +14,11 @@ WHITE = (229, 222, 207)
 BLACK = (0, 0, 0)
 BLUE = (100, 149, 237)
 
+FILL = WHITE
+EMPTY = BLACK
+HOVER = BLUE
+DOT = (229, 222, 206)
+
 
 class Cell:
     # Set parameters of the cell
@@ -28,30 +33,32 @@ class Cell:
         self.coordinates = x, y
         self.fill_coordinates = x + self.width + self.gap, y + self.width + self.gap
 
+    #  Draws an outline of a cell
     def draw_cell(self):
         pygame.draw.rect(WIN, WHITE, (*self.coordinates, self.side, self.side), self.width)
 
-    def fill_cell(self):
-        pygame.draw.rect(WIN, WHITE, (*self.fill_coordinates, self.fill_side, self.fill_side))
-        self.is_filled = True
+    #  Changes the state of a cell
+    def cell_state(self, state):
+        if state == DOT:
+            pygame.draw.circle(WIN, state, (self.coordinates[0] + self.side / 2, self.coordinates[1] +
+                                            self.side / 2), 2)
+        else:
+            pygame.draw.rect(WIN, state, (*self.fill_coordinates, self.fill_side, self.fill_side))
 
-    def empty_cell(self):
-        pygame.draw.rect(WIN, BLACK, (*self.fill_coordinates, self.fill_side, self.fill_side))
-        self.is_filled = False
+        if state == FILL or state == DOT:
+            self.is_filled = True
+        elif state == HOVER:
+            pass
+        else:
+            self.is_filled = False
 
-    def dotted_cell(self):
-        pygame.draw.circle(WIN, WHITE, (self.coordinates[0] + self.side / 2, self.coordinates[1] + self.side / 2),
-                           2)
-        self.is_filled = True
-
-    def hover_cell(self):
-        pygame.draw.rect(WIN, BLUE, (*self.fill_coordinates, self.fill_side, self.fill_side))
-
+    #  Defines area that can be clicked
     def clickable_area(self):
         clickable_area = (*self.fill_coordinates, self.fill_coordinates[0] + self.fill_side, self.fill_coordinates[1]
                           + self.fill_side)
         return clickable_area
 
+    #  Defines the area that appears blue
     def hover_area(self):
         hover_area = *self.fill_coordinates, self.fill_side, self.fill_side
         return hover_area
@@ -64,20 +71,22 @@ class Grid:
         self.grid = [[Cell((CENTER[0] - cols / 2 * cell_side) + i * cell_side, (CENTER[1] - rows / 2 * cell_side) + j *
                            cell_side) for j in range(cols)] for i in range(rows)]
 
+    #  Draws the whole grid
     def draw_grid(self):
         for row in self.grid:
             for cell in row:
                 cell.draw_cell()
 
+    #  Draws the blue area for each cell
     def grid_hover(self):
         for row in self.grid:
             for cell in row:
                 cell_size = pygame.Rect(cell.hover_area())
                 if not cell.is_filled:
                     if cell_size.collidepoint(pygame.mouse.get_pos()):
-                        cell.hover_cell()
+                        cell.cell_state(HOVER)
                     else:
-                        cell.empty_cell()
+                        cell.cell_state(EMPTY)
 
 
 def main():
@@ -106,13 +115,13 @@ def main():
                             if event.button == 1:  # Left click
                                 print("Left click detected at position", event.pos)
                                 if not cell.is_filled:
-                                    cell.fill_cell()
+                                    cell.cell_state(FILL)
                                 else:
-                                    cell.empty_cell()
-                                    cell.dotted_cell()
+                                    cell.cell_state(EMPTY)
+                                    cell.cell_state(DOT)
                             if event.button == 3:  # Right click
                                 print("Right click detected at position", event.pos)
-                                cell.empty_cell()
+                                cell.cell_state(EMPTY)
 
         grid.draw_grid()
         grid.grid_hover()
