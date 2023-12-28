@@ -3,7 +3,7 @@ import pygame
 pygame.init()
 
 # Set window
-WIDTH, HEIGHT = 800, 800
+WIDTH, HEIGHT = 800, 670
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
 CENTER = (WIDTH // 2, HEIGHT // 2)
 
@@ -39,6 +39,11 @@ class Cell:
         pygame.draw.rect(WIN, BLACK, (*self.fill_coordinates, self.fill_side, self.fill_side))
         self.is_filled = False
 
+    def dotted_cell(self):
+        pygame.draw.circle(WIN, WHITE, (self.coordinates[0] + self.side / 2, self.coordinates[1] + self.side / 2),
+                           2)
+        self.is_filled = True
+
     def hover_cell(self):
         pygame.draw.rect(WIN, BLUE, (*self.fill_coordinates, self.fill_side, self.fill_side))
 
@@ -56,8 +61,8 @@ class Grid:
     def __init__(self, cols, rows, cell_side):
         self.cols = cols
         self.rows = rows
-        self.grid = [[Cell(CENTER[0] + i * cell_side, CENTER[1] + j * cell_side) for j in range(cols)] for i in
-                     range(rows)]
+        self.grid = [[Cell((CENTER[0] - cols / 2 * cell_side) + i * cell_side, (CENTER[1] - rows / 2 * cell_side) + j *
+                           cell_side) for j in range(cols)] for i in range(rows)]
 
     def draw_grid(self):
         for row in self.grid:
@@ -100,7 +105,11 @@ def main():
                                 <= y <= cell.clickable_area()[3]):
                             if event.button == 1:  # Left click
                                 print("Left click detected at position", event.pos)
-                                cell.fill_cell()
+                                if not cell.is_filled:
+                                    cell.fill_cell()
+                                else:
+                                    cell.empty_cell()
+                                    cell.dotted_cell()
                             if event.button == 3:  # Right click
                                 print("Right click detected at position", event.pos)
                                 cell.empty_cell()
