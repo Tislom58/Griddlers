@@ -89,11 +89,43 @@ class Grid:
                         cell.cell_state(EMPTY)
 
 
+class Button:
+    smallfont = pygame.font.SysFont('Corbel', 20)
+    is_pressed = False
+
+    def __init__(self, x, y, width, height, text=''):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.text = text
+
+    def draw_button(self):
+        pygame.draw.rect(WIN, WHITE, (self.x, self.y, self.width, self.height))
+        rendertext = self.smallfont.render(self.text, True, BLUE)
+        WIN.blit(rendertext, (self.x + 5, self.y + self.height / 2 - 5))
+
+        self.is_pressed = False
+
+    def press_button(self):
+        pygame.draw.rect(WIN, WHITE, (self.x, self.y, self.width, self.height))
+        pygame.draw.rect(WIN, BLACK, (self.x + 1, self.y + 1, self.width - 2, self.height - 2), 3)
+        rendertext = self.smallfont.render(self.text, True, BLUE)
+        WIN.blit(rendertext, (self.x + 5, self.y + self.height / 2 - 5))
+
+        self.is_pressed = True
+
+
 def main():
     run = True
     clock = pygame.time.Clock()
 
     grid = Grid(20, 20, 18)
+    manual_button = Button(20, 20, 80, 40, 'Manual')
+    automatic_button = Button(20, 70, 80, 40, 'Automatic')
+
+    manual_button.draw_button()
+    automatic_button.draw_button()
 
     while run:
         clock.tick(60)
@@ -109,22 +141,34 @@ def main():
                         # Get the position of the click
                         x, y = event.pos
 
-                        # Check if the click is within the clickable area
-                        if (cell.clickable_area()[0] <= x <= cell.clickable_area()[2] and cell.clickable_area()[1]
-                                <= y <= cell.clickable_area()[3]):
-                            if event.button == 1:  # Left click
-                                print("Left click detected at position", event.pos)
-                                if not cell.is_filled:
-                                    cell.cell_state(FILL)
-                                else:
+                        if manual_button.is_pressed:
+                            # Check if the click is within the clickable area
+                            if (cell.clickable_area()[0] <= x <= cell.clickable_area()[2] and cell.clickable_area()[1]
+                                    <= y <= cell.clickable_area()[3]):
+                                if event.button == 1:  # Left click
+                                    if not cell.is_filled:
+                                        cell.cell_state(FILL)
+                                    else:
+                                        cell.cell_state(EMPTY)
+                                        cell.cell_state(DOT)
+                                if event.button == 3:  # Right click
                                     cell.cell_state(EMPTY)
-                                    cell.cell_state(DOT)
-                            if event.button == 3:  # Right click
-                                print("Right click detected at position", event.pos)
-                                cell.cell_state(EMPTY)
+
+                        if (manual_button.x <= x <= manual_button.x + manual_button.width and
+                                manual_button.y <= y <= manual_button.y + manual_button.height):
+                            if event.button == 1:
+                                manual_button.press_button()
+                                automatic_button.draw_button()
+
+                        if (automatic_button.x <= x <= automatic_button.x + automatic_button.width and
+                                automatic_button.y <= y <= automatic_button.y + automatic_button.height):
+                            if event.button == 1:
+                                automatic_button.press_button()
+                                manual_button.draw_button()
 
         grid.draw_grid()
-        grid.grid_hover()
+        if manual_button.is_pressed:
+            grid.grid_hover()
 
         pygame.display.update()
 
