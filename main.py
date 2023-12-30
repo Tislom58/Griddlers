@@ -10,7 +10,7 @@ CENTER = (WIDTH // 2, HEIGHT // 2)
 pygame.display.set_caption("Griddles")
 
 # Set the size of grid in 5x5 boxes ; (4, 4) == (20, 20) in cells
-GRID_SIZE = (5, 5)
+GRID_SIZE = (6, 4)
 
 # Color presets
 WHITE = (229, 222, 207)
@@ -109,7 +109,7 @@ class Unit:
 
 def grid(rows, cols):
     x, y = CENTER
-    _grid = [[Unit(x - (cols * 92) / 2 + i * 92, y - (rows * 92) / 2 + j * 92) for i in range(rows)] for j
+    _grid = [[Unit(x - (rows * 92) / 2 + i * 92, y - (cols * 92) / 2 + j * 92) for i in range(rows)] for j
              in range(cols)]
     return _grid
 
