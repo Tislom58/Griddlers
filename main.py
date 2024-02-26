@@ -2,6 +2,7 @@ import pygame
 import random
 
 pygame.init()
+clock = pygame.time.Clock()
 
 # Next steps
 # TODO: Create parent class
@@ -48,7 +49,7 @@ class Cell:
 
         self.is_filled = fill
         self.has_dot = dot
-        self.number = number
+        self.number = str(number)
 
     def draw(self, color):
         """Draws a filled cell"""
@@ -64,7 +65,7 @@ class Cell:
 
     def draw_number(self):
         """Draws a number inside the cell"""
-        if self.number is not None:
+        if self.number is not None and not self.number == "0":
             font = pygame.font.SysFont("Corbel", self.size - 5)
             text_surface = font.render(self.number, True, BLACK)
 
@@ -189,7 +190,7 @@ class Grid:
 def hover(instance):
     """Renders hover effect on cells"""
     if not instance.is_filled:
-        if instance.rect.collidepoint(pygame.mouse.get_pos()):
+        if instance.inner_rect.collidepoint(pygame.mouse.get_pos()):
             instance.draw(BLUE)
         else:
             instance.draw(WHITE)
@@ -278,10 +279,17 @@ def erase_grid(grid):
     [cell.draw_border(WHITE) for row in grid for cell in row]
 
 
-def init_numbers(grid):
-    for row in grid:
-        for cell in row:
-            number = str(random.randint(1, 99))
+def init_left_nums(grid):
+    numbers = set_left_nums()
+    for i, row in enumerate(grid):
+        for j, cell in enumerate(row):
+            cell.number = numbers[j][i]
+
+
+def init_top_nums(grid):
+    numbers = set_top_nums()
+    for row, column in zip(grid, numbers):
+        for cell, number in zip(row, column):
             cell.number = number
 
 
@@ -302,12 +310,85 @@ def pan():
         CENTER[1] += movement[1]
 
 
+def set_top_nums():
+    """Sets top numbers"""
+    top_nums = [
+                [6, 0, 0, 0, 0],
+                [4, 0, 0, 0, 0],
+                [2, 9, 0, 0, 0],
+                [7, 2, 4, 0, 0],
+                [2, 4, 2, 2, 2],
+                [5, 3, 2, 0, 0],
+                [3, 3, 2, 3, 0],
+                [6, 1, 2, 4, 0],
+                [2, 8, 2, 0, 0],
+                [5, 2, 0, 0, 0],
+                [3, 4, 0, 0, 0],
+                [1, 5, 1, 0, 0],
+                [5, 2, 0, 0, 0],
+                [2, 4, 0, 0, 0],
+                [7, 1, 0, 0, 0],
+                [2, 5, 0, 0, 0],
+                [2, 4, 2, 0, 0],
+                [9, 5, 1, 0, 0],
+                [2, 6, 4, 0, 0],
+                [3, 7, 1, 1, 0],
+                [2, 5, 1, 3, 1],
+                [8, 2, 0, 0, 0],
+                [2, 4, 1, 0, 0],
+                [8, 0, 0, 0, 0],
+                [7, 0, 0, 0, 0],
+                [3, 4, 0, 0, 0],
+                [7, 0, 0, 0, 0],
+                [6, 0, 0, 0, 0],
+                [1, 3, 0, 0, 0],
+                [3, 0, 0, 0, 0],
+                ]
+
+    return top_nums
+
+
+def set_left_nums():
+    left_nums = [
+                [1, 2, 0, 0, 0, 0, 0, 0],
+                [3, 2, 0, 0, 0, 0, 0, 0],
+                [6, 1, 0, 0, 0, 0, 0, 0],
+                [5, 1, 2, 0, 0, 0, 0, 0],
+                [2, 7, 2, 5, 0, 0, 0, 0],
+                [9, 17, 0, 0, 0, 0, 0, 0],
+                [6, 1, 3, 1, 2, 2, 2, 2],
+                [7, 1, 1, 1, 3, 2, 2, 5],
+                [1, 2, 4, 1, 3, 2, 1, 6],
+                [3, 2, 1, 2, 1, 2, 5, 3],
+                [4, 1, 1, 2, 3, 5, 0, 0],
+                [8, 5, 5, 1, 0, 0, 0, 0],
+                [9, 6, 1, 1, 0, 0, 0, 0],
+                [1, 2, 7, 5, 1, 0, 0, 0],
+                [1, 2, 2, 3, 1, 0, 0, 0],
+                [4, 5, 0, 0, 0, 0, 0, 0],
+                [1, 2, 2, 3, 0, 0, 0, 0],
+                [1, 1, 2, 2, 0, 0, 0, 0],
+                [1, 2, 2, 2, 0, 0, 0, 0],
+                [1, 2, 2, 2, 0, 0, 0, 0],
+                ]
+
+    return left_nums
+
+
+def fps_counter():
+    rect = pygame.Rect(WIDTH - 200, 50, 200, 200)
+    pygame.draw.rect(WINDOW, WHITE, rect)
+    fps = str(int(clock.get_fps()))
+    font = pygame.font.SysFont("Corbel", 50)
+    fps_text = font.render(f"FPS: {fps}", True, BLACK)
+    WINDOW.blit(fps_text, (WIDTH - 200, 50))  # Adjust the position as needed
+
+
 def main():
     """Executed code"""
 
     pan_active = False
     run = True
-    clock = pygame.time.Clock()
 
     # Initialization of static instances
     plus_button = Button(20, 20, 50, 50, " +")
@@ -318,19 +399,24 @@ def main():
 
     buttons = (plus_button, minus_button, manual_button, automatic_button, pan_button)
 
-    grid = Grid(20, 20)
-    top_nums = Grid(3, 20)
-    left_nums = Grid(20, 3)
+    rows = 20
+    columns = 30
+
+    grid = Grid(rows, columns)
+    top_nums = Grid(5, columns)
+    left_nums = Grid(rows, 8)
     mirror_grid = grid.mirror_grid()
     top_numbers_mirror = top_nums.mirror_grid()
     left_numbers_mirror = left_nums.mirror_grid()
-    init_numbers(top_numbers_mirror)
-    init_numbers(left_numbers_mirror)
+    init_top_nums(top_numbers_mirror)
+    init_left_nums(left_numbers_mirror)
 
     WINDOW.fill(WHITE)
 
     while run:
         clock.tick(60)
+
+        fps_counter()
 
         # Initialization of dynamic instances
         outer_cells = grid.init_grid(mirror_grid)
@@ -407,10 +493,6 @@ def main():
                     cell.draw(WHITE)
                 else:
                     mCell.has_dot = False
-
-        # Reset frame
-        # WINDOW.fill(BLACK)
-
     pygame.quit()
 
 
