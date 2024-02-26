@@ -1,228 +1,105 @@
 import pygame
+import random
 
 pygame.init()
+clock = pygame.time.Clock()
+
+# Next steps
+# TODO: Create parent class
+# TODO: Fix toggling numbers and fills
 
 # Set window
-WIDTH, HEIGHT = 800, 670
-WIN = pygame.display.set_mode((WIDTH, HEIGHT))
-CENTER = (WIDTH // 2, HEIGHT // 2)
+WIDTH, HEIGHT = 1200, 950
+WINDOW = pygame.display.set_mode((WIDTH, HEIGHT))
+CENTER = [WIDTH // 2, HEIGHT // 2]
 
+# Title
 pygame.display.set_caption("Griddles")
 
-# Set the size of grid in 5x5 boxes ; (4, 4) == (20, 20) in cells
-GRID_SIZE = (5, 5)
-
-# Color presets
-WHITE = (229, 222, 207)
-BLACK = (0, 0, 0)
+# RGB color presets
+BLACK = (47, 45, 52)
+WHITE = (224, 214, 176)
 BLUE = (100, 149, 237)
 
-# Cell state presets
-FILL = WHITE
-EMPTY = BLACK
-HOVER = BLUE
-DOT = (229, 222, 206)
 
-# Cell size presets
-CELL_SIDE = 20
-CELL_BORDER = int(CELL_SIDE / 10)
-CELL_GAP = CELL_BORDER
-
-
-class Cell:
-    def __init__(self, x, y):
-        # Define init coordinates
-        self.coordinates = x, y
-        self.fill_coordinates = x + CELL_BORDER + CELL_GAP, y + CELL_BORDER + CELL_GAP
-
-        # Filling parameters
-        self.filled_side = CELL_SIDE - 2 * (CELL_BORDER + CELL_GAP)
-        self.is_filled = False
-
-        # Define coordinates for sides
-        self.left_side = (x, y), (x, y + (CELL_SIDE - CELL_BORDER))
-        self.right_side = (x + (CELL_SIDE - CELL_BORDER), y), (x + (CELL_SIDE - CELL_BORDER), y + (CELL_SIDE - CELL_BORDER))
-        self.upper_side = (x, y), (x + (CELL_SIDE - CELL_BORDER), y)
-        self.bottom_side = (x, y + (CELL_SIDE - CELL_BORDER)), (x + (CELL_SIDE - CELL_BORDER), y + (CELL_SIDE - CELL_BORDER))
-
-    def draw_cell(self):
-        #  Draws an empty cell
-        pygame.draw.rect(WIN, WHITE, (*self.coordinates, CELL_SIDE, CELL_SIDE), CELL_BORDER)
-
-    def draw_numcell(self, vertical=False):
-        # Draws a cell with fill number
-        # print(self.upper_side[0][0], self.upper_side[1][0])
-        if not vertical:
-            pygame.draw.line(WIN, WHITE, self.left_side[0], self.left_side[1], CELL_BORDER)
-            pygame.draw.line(WIN, WHITE, self.right_side[0], self.right_side[1], CELL_BORDER)
-            for i in range(0, (int(self.bottom_side[1][0]) - CELL_BORDER) - (int(self.bottom_side[0][0]) + CELL_BORDER), 4):
-                pygame.draw.line(WIN, WHITE, (self.bottom_side[0][0] + CELL_BORDER + i + 1,
-                                              self.bottom_side[0][1]),
-                                 (self.bottom_side[0][0] + CELL_BORDER + i + CELL_GAP,
-                                  self.bottom_side[0][1]), CELL_BORDER)
-        else:
-            pygame.draw.line(WIN, WHITE, self.upper_side[0], self.upper_side[1], CELL_BORDER)
-            pygame.draw.line(WIN, WHITE, self.bottom_side[0], self.bottom_side[1], CELL_BORDER)
-            for i in range(0, (int(self.right_side[1][1]) - CELL_BORDER) - (int(self.right_side[0][1]) + CELL_BORDER), 4):
-                pygame.draw.line(WIN, WHITE, (self.right_side[0][0],
-                                              self.right_side[0][1] + CELL_BORDER + i + 1),
-                                 (self.right_side[0][0],
-                                  self.right_side[0][1] + CELL_BORDER + i + CELL_GAP), CELL_BORDER)
-
-    def cell_state(self, state):
-        #  Changes the state of the cell - empty / filled / dotted / hovered over
-        if state == DOT:
-            pygame.draw.circle(WIN, state, (self.coordinates[0] + CELL_SIDE / 2, self.coordinates[1] +
-                                            CELL_SIDE / 2), 2)
-        else:
-            pygame.draw.rect(WIN, state, (*self.fill_coordinates, self.filled_side, self.filled_side))
-
-        if state == FILL or state == DOT:
-            self.is_filled = True
-        elif state == HOVER:
-            pass
-        else:
-            self.is_filled = False
-
-    def clickable_area(self):
-        #  Defines coordinates for clicking the cell
-        clickable_area = (*self.fill_coordinates, self.fill_coordinates[0] + self.filled_side, self.fill_coordinates[1]
-                          + self.filled_side)
-        return clickable_area
-
-    def hover_area(self):
-        #  Defines the area that appears blue when cell is hovered over
-        hover_area = *self.fill_coordinates, self.filled_side, self.filled_side
-        return hover_area
-
-
-class Unit:
-    # Creates a 5x5 unit of cells
-    def __init__(self, x, y):
-        # Define grid of 5x5 unit made up of cells
-        self.unit = [[Cell(x + i * 18, y + j * 18) for j in range(5)] for i in range(5)]
-
-        # Set thickness parameters
-        self.unit_thickness = 2
-        self.unit_side = 5 * (CELL_SIDE - CELL_BORDER) + CELL_BORDER
-
-        # Define coordinates for sides
-        self.left_side = ((x, y),
-                          (x, y + (self.unit_side - 1)))
-        self.right_side = ((x + (self.unit_side - 1), y),
-                           (x + (self.unit_side - 1), y + (self.unit_side - 1)))
-        self.upper_side = ((x, y),
-                           (x + (self.unit_side - 1), y))
-        self.lower_side = ((x, y + (self.unit_side - 1)),
-                           (x + (self.unit_side - 1), y + (self.unit_side - 1)))
-
-    def __iter__(self):
-        # Flatten the 5x5 list of cells into a single list
-        return iter([cell for row in self.unit for cell in row])
-
-    def draw_unit(self):
-        #  Draws the unit
-        for row_index, row in enumerate(self.unit):
-            for cell_index, cell in enumerate(row):
-                cell.draw_cell()
-                if cell_index == 0:
-                    pygame.draw.line(WIN, WHITE, (cell.coordinates[0], cell.coordinates[1] - 2),
-                                     (cell.coordinates[0] + CELL_SIDE - 1, cell.coordinates[1] - 2), 2)
-                if cell_index == len(self.unit) - 1:
-                    pygame.draw.line(WIN, WHITE, (cell.coordinates[0], cell.coordinates[1] + CELL_SIDE),
-                                     (cell.coordinates[0] + CELL_SIDE - 1, cell.coordinates[1] + CELL_SIDE), 2)
-                if row_index == 0:
-                    pygame.draw.line(WIN, WHITE, (cell.coordinates[0] - 2, cell.coordinates[1] - 2),
-                                     (cell.coordinates[0] - 2, cell.coordinates[1] + CELL_SIDE + 1), 2)
-                if row_index == len(row) - 1:
-                    pygame.draw.line(WIN, WHITE, (cell.coordinates[0] + CELL_SIDE, cell.coordinates[1] - 2),
-                                     (cell.coordinates[0] + CELL_SIDE, cell.coordinates[1] + CELL_SIDE + 1), 2)
-
-    def unit_hover(self):
-        #  Draws the blue area for each cell
-        for row in self.unit:
-            for cell in row:
-                cell_size = pygame.Rect(cell.hover_area())
-                if not cell.is_filled:
-                    if cell_size.collidepoint(pygame.mouse.get_pos()):
-                        cell.cell_state(HOVER)
-                    else:
-                        cell.cell_state(EMPTY)
-
-    # def get_unit_coords(self):
-    #     coords = (self.unit[0][0].coordinates, self.unit[4][4].coordinates)
-    #     return coords
-
-
-class NumUnit:
+class Object:
     def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.num_unit_hor = [[Cell(x + i * 18, y + j * 18) for j in range(3)] for i in range(5)]
-        self.num_unit_ver = [[Cell(x + i * 18, y + j * 18) for j in range(5)] for i in range(3)]
-
-    def draw_num_unit_horizontal(self):
-        # Draws horizontal units of numbered cells
-        for row in self.num_unit_hor:
-            for cell in row:
-                cell.draw_numcell()
-
-    def draw_num_unit_vertical(self):
-        # Draws vertical units of numbered cells
-        for row in self.num_unit_ver:
-            for cell in row:
-                cell.draw_numcell(True)
 
 
-def grid(rows, cols):
-    # Stores grid coordinates
-    x, y = CENTER
-    _grid = [[Unit(x - (rows * 92) / 2 + i * 92, y - (cols * 92) / 2 + j * 92) for i in range(rows)] for j in
-             range(cols)]
-    return _grid
+class Cell:
+    init_size = 20
+    gap = 2
+
+    def __init__(self, x, y, size, fill=False, dot=False, number=None):
+
+        # Position
+        self.size = size
+        self.border = size // 10
+        self.inner_size = size - 2 * (self.border + self.gap)
+
+        self.x = x
+        self.y = y
+        self.inner_x = x + self.border + self.gap
+        self.inner_y = y + self.border + self.gap
+
+        self.rect = pygame.Rect(x, y, size, size)
+        self.inner_rect = pygame.Rect(self.inner_x, self.inner_y, self.inner_size, self.inner_size)
+
+        self.is_filled = fill
+        self.has_dot = dot
+        self.number = str(number)
+
+    def draw(self, color):
+        """Draws a filled cell"""
+        pygame.draw.rect(WINDOW, color, self.inner_rect)
+
+    def draw_border(self, color):
+        """Draws a border of a cell"""
+        pygame.draw.rect(WINDOW, color, self.rect, self.border)
+
+    def draw_dot(self, color):
+        """Draws a dot inside the cell"""
+        pygame.draw.circle(WINDOW, color, (self.inner_x + self.inner_size // 2, self.inner_y + self.inner_size // 2), self.inner_size // 10)
+
+    def draw_number(self):
+        """Draws a number inside the cell"""
+        if self.number is not None and not self.number == "0":
+            font = pygame.font.SysFont("Corbel", self.size - 5)
+            text_surface = font.render(self.number, True, BLACK)
+
+            if len(self.number) == 2:
+                WINDOW.blit(text_surface, (self.inner_rect.x + 2, self.inner_rect.y + 2))
+            elif len(self.number) == 1:
+                WINDOW.blit(text_surface, (self.inner_rect.x + 5, self.inner_rect.y + 2))
+
+    def is_in_area(self, mouse_pos):
+        """Returns boolean value whether the cursor is inside the area of the cell"""
+        return self.inner_rect.collidepoint(mouse_pos)
 
 
-def draw_grid(rows, cols):
-    # Draws grid
-    draw = grid(rows, cols)
-    for row_index, row in enumerate(draw):
-        for unit_index, unit in enumerate(row):
-            unit.draw_unit()
-            # print(unit.left_side[0][0], unit.left_side[0][1])
-            # print(unit.left_side[0][0], unit.left_side[0][1] - 3 * CELL_SIDE - CELL_BORDER)
-            if row_index == 0:
-                num_unit = NumUnit(unit.left_side[0][0], unit.left_side[0][1]
-                                   - (3 * (CELL_SIDE - CELL_BORDER) + CELL_BORDER))
-                num_unit.draw_num_unit_horizontal()
-                if unit_index == 0:
-                    pygame.draw.line(WIN, WHITE, (unit.left_side[0][0] - unit.unit_thickness,
-                                     unit.left_side[0][1] - unit.unit_thickness - 3 * (CELL_SIDE - CELL_BORDER)),
-                                     (unit.left_side[0][0] - unit.unit_thickness,
-                                     unit.left_side[0][1]), 2)
-                if unit_index == len(row) - 1:
-                    pygame.draw.line(WIN, WHITE, (unit.right_side[0][0] + unit.unit_thickness - 1,
-                                        unit.right_side[0][1] - unit.unit_thickness - 3 * (CELL_SIDE - CELL_BORDER)),
-                                     (unit.right_side[0][0] - 1 + unit.unit_thickness,
-                                      unit.right_side[0][1]), 2)
-            if unit_index == 0:
-                num_unit = NumUnit(unit.left_side[0][0] - (3 * (CELL_SIDE - CELL_BORDER) + CELL_BORDER),
-                                   unit.left_side[0][1])
-                num_unit.draw_num_unit_vertical()
-                if row_index == 0:
-                    pygame.draw.line(WIN, WHITE, (unit.left_side[0][0] - unit.unit_thickness,
-                                     unit.left_side[0][1] - unit.unit_thickness),
-                                     (unit.left_side[0][0] - unit.unit_thickness - 3 * (CELL_SIDE - CELL_BORDER),
-                                     unit.left_side[0][1] - unit.unit_thickness), 2)
-                if row_index == len(draw) - 1:
-                    pygame.draw.line(WIN, WHITE, (unit.left_side[1][0] - unit.unit_thickness,
-                                                  unit.left_side[1][1] + 3 - unit.unit_thickness),
-                                     (unit.left_side[1][0] - unit.unit_thickness - 3 * (CELL_SIDE - CELL_BORDER),
-                                      unit.left_side[1][1] + 3 - unit.unit_thickness), 2)
+class MirrorCell:
+    def __init__(self):
+        self.number = None
+        self.is_filled = False
+        self.has_dot = False
+
+    def update(self, value):
+        if type(value) is int:
+            self.number = value
+        elif value == "fill":
+            self.is_filled = True
+        elif value == "dot":
+            self.has_dot = True
+        else:
+            pass
 
 
 class Button:
-    smallfont = pygame.font.SysFont('Corbel', 20)
-    is_pressed = False
+    pressed = True
+    unpressed = False
+    refresh = True
 
     def __init__(self, x, y, width, height, text=''):
         self.x = x
@@ -230,85 +107,392 @@ class Button:
         self.width = width
         self.height = height
         self.text = text
-
-    def draw_button(self):
-        # Draws the initial button
-        pygame.draw.rect(WIN, WHITE, (self.x, self.y, self.width, self.height))
-        rendertext = self.smallfont.render(self.text, True, BLUE)
-        WIN.blit(rendertext, (self.x + 5, self.y + self.height / 2 - 5))
-
+        self.smallfont = pygame.font.SysFont('Corbel', 50)
         self.is_pressed = False
 
-    def press_button(self):
-        # Draws pressed button
-        pygame.draw.rect(WIN, WHITE, (self.x, self.y, self.width, self.height))
-        pygame.draw.rect(WIN, BLACK, (self.x + 1, self.y + 1, self.width - 2, self.height - 2), 3)
+    def draw(self):
+        """Draws the button"""
+        pygame.draw.rect(WINDOW, BLACK, (self.x, self.y, self.width, self.height))
+        if self.is_pressed:
+            pygame.draw.rect(WINDOW, WHITE, (self.x + 1, self.y + 1, self.width - 2, self.height - 2), 3)
         rendertext = self.smallfont.render(self.text, True, BLUE)
-        WIN.blit(rendertext, (self.x + 5, self.y + self.height / 2 - 5))
+        WINDOW.blit(rendertext, (self.x + 5, self.y + 6))
 
-        self.is_pressed = True
+    def set_state(self, pressed):
+        """Sets the button state"""
+        self.is_pressed = True if pressed else False
+
+    def is_in_area(self, x, y):
+        """Checks if the area is clicked"""
+        return self.x <= x <= self.x + self.width and self.y <= y <= self.y + self.height
+
+
+class Grid:
+    def __init__(self, rows, columns):
+        self.rows = rows
+        self.columns = columns
+
+    def mirror_grid(self):
+        """Mirrors the grid with values only"""
+        return [[MirrorCell() for j in range(self.rows)] for i in range(self.columns)]
+
+    def init_grid(self, mirror_grid):
+        """Creates a 5x5 2D list"""
+        outer_border = Cell.init_size // 10
+        grid = []
+
+        for i in range(self.columns):
+            row = []
+            for j in range(self.rows):
+                cell = Cell(CENTER[0] + i * (Cell.init_size - outer_border),
+                            CENTER[1] + j * (Cell.init_size - outer_border),
+                            Cell.init_size,
+                            mirror_grid[i][j].is_filled,
+                            mirror_grid[i][j].has_dot)
+                row.append(cell)
+            grid.append(row)
+
+        return grid
+
+    def init_left_grid(self, mirror):
+        outer_border = Cell.init_size // 10
+        grid = []
+
+        for i in range(self.columns):
+            row = []
+            for j in range(self.rows):
+                cell = Cell(CENTER[0] - (Cell.init_size - outer_border) - i * (Cell.init_size - outer_border),
+                            CENTER[1] + j * (Cell.init_size - outer_border),
+                            Cell.init_size,
+                            number=mirror[i][j].number)
+                row.append(cell)
+            grid.append(row)
+
+        return grid
+
+    def init_top_grid(self, mirror):
+        outer_border = Cell.init_size // 10
+        grid = []
+
+        for i in range(self.columns):
+            row = []
+            for j in range(self.rows):
+                cell = Cell(CENTER[0] + i * (Cell.init_size - outer_border),
+                            CENTER[1] - (Cell.init_size - outer_border) - j * (Cell.init_size - outer_border),
+                            Cell.init_size,
+                            number=mirror[i][j].number)
+                row.append(cell)
+            grid.append(row)
+
+        return grid
+
+
+def hover(instance):
+    """Renders hover effect on cells"""
+    if not instance.is_filled:
+        if instance.inner_rect.collidepoint(pygame.mouse.get_pos()):
+            instance.draw(BLUE)
+        else:
+            instance.draw(WHITE)
+    elif instance.is_filled and not instance.has_dot:
+        instance.draw(BLACK)
+    elif instance.is_filled and instance.has_dot:
+        instance.draw_dot(BLACK)
+
+
+def button_is_pressed(event, pos, instance):
+    """Checks if button is pressed"""
+    return instance.is_in_area(*pos) and event.button == 1
+
+
+def render_button(instance, refresh=False):
+    """Keeps buttons rendered"""
+    instance.draw()
+    if refresh:
+        instance.set_state(Button.unpressed)
+
+
+def button_handler(event, pos, buttons):
+    """Handles button clicks"""
+    if button_is_pressed(event, pos, buttons[0]):  # Press + button
+        buttons[0].set_state(Button.pressed)
+        Cell.init_size += 10
+    if button_is_pressed(event, pos, buttons[1]):  # Press - button
+        buttons[1].set_state(Button.pressed)
+        Cell.init_size -= 10
+    if button_is_pressed(event, pos, buttons[2]) and not buttons[2].is_pressed:
+        buttons[2].set_state(Button.pressed)
+        buttons[3].set_state(Button.unpressed)
+        buttons[4].set_state(Button.unpressed)
+    elif button_is_pressed(event, pos, buttons[2]) and buttons[2].is_pressed:
+        buttons[2].set_state(Button.unpressed)
+    if button_is_pressed(event, pos, buttons[3]) and not buttons[3].is_pressed:
+        buttons[3].set_state(Button.pressed)
+        buttons[2].set_state(Button.unpressed)
+        buttons[4].set_state(Button.unpressed)
+    elif button_is_pressed(event, pos, buttons[3]) and buttons[3].is_pressed:
+        buttons[3].set_state(Button.unpressed)
+    if button_is_pressed(event, pos, buttons[4]) and not buttons[4].is_pressed:
+        buttons[4].set_state(Button.pressed)
+        buttons[2].set_state(Button.unpressed)
+        buttons[3].set_state(Button.unpressed)
+    elif button_is_pressed(event, pos, buttons[4]) and buttons[4].is_pressed:
+        buttons[4].set_state(Button.unpressed)
+
+
+def cell_events(event, pos, instance):
+    """Event handler for clicks on the cell"""
+
+    if not instance.is_filled:
+        if instance.is_in_area(pos) and event.button == 1:
+            # instance.draw(SKETCHBOOK_WHITE)
+            instance.is_filled = True
+
+    elif instance.is_filled and not instance.has_dot:
+        if instance.is_in_area(pos) and event.button == 1:
+            instance.draw_dot(BLACK)
+            instance.has_dot = True
+
+    if instance.is_in_area(pos) and event.button == 3:
+        instance.draw(WHITE)
+        instance.is_filled = False
+        instance.has_dot = False
+
+
+def automatic(instance):
+    state = random.randint(1, 3)
+    if state == 1:
+        instance.draw(BLACK)
+    elif state == 2:
+        instance.draw(WHITE)
+    else:
+        instance.draw_dot(BLACK)
+
+
+def draw_grid(grid):
+    """Draws grid"""
+    [cell.draw_border(BLACK) for row in grid for cell in row]
+
+
+def erase_grid(grid):
+    """Erases grid"""
+    [cell.draw_border(WHITE) for row in grid for cell in row]
+
+
+def init_left_nums(grid):
+    numbers = set_left_nums()
+    for i, row in enumerate(grid):
+        for j, cell in enumerate(row):
+            cell.number = numbers[j][i]
+
+
+def init_top_nums(grid):
+    numbers = set_top_nums()
+    for row, column in zip(grid, numbers):
+        for cell, number in zip(row, column):
+            cell.number = number
+
+
+def draw_numbers(grid):
+    [cell.draw_number() for row in grid for cell in row]
+
+
+def erase_numbers(grid):
+    [pygame.draw.rect(WINDOW, WHITE, cell.rect) for row in grid for cell in row]
+
+
+def pan():
+    """Pans the screen"""
+    movement = pygame.mouse.get_rel()
+    # print(CENTER, movement)
+    if -100 < movement[0] < 100 and -100 < movement[1] < 100:
+        CENTER[0] += movement[0]
+        CENTER[1] += movement[1]
+
+
+def set_top_nums():
+    """Sets top numbers"""
+    top_nums = [
+                [6, 0, 0, 0, 0],
+                [4, 0, 0, 0, 0],
+                [2, 9, 0, 0, 0],
+                [7, 2, 4, 0, 0],
+                [2, 4, 2, 2, 2],
+                [5, 3, 2, 0, 0],
+                [3, 3, 2, 3, 0],
+                [6, 1, 2, 4, 0],
+                [2, 8, 2, 0, 0],
+                [5, 2, 0, 0, 0],
+                [3, 4, 0, 0, 0],
+                [1, 5, 1, 0, 0],
+                [5, 2, 0, 0, 0],
+                [2, 4, 0, 0, 0],
+                [7, 1, 0, 0, 0],
+                [2, 5, 0, 0, 0],
+                [2, 4, 2, 0, 0],
+                [9, 5, 1, 0, 0],
+                [2, 6, 4, 0, 0],
+                [3, 7, 1, 1, 0],
+                [2, 5, 1, 3, 1],
+                [8, 2, 0, 0, 0],
+                [2, 4, 1, 0, 0],
+                [8, 0, 0, 0, 0],
+                [7, 0, 0, 0, 0],
+                [3, 4, 0, 0, 0],
+                [7, 0, 0, 0, 0],
+                [6, 0, 0, 0, 0],
+                [1, 3, 0, 0, 0],
+                [3, 0, 0, 0, 0],
+                ]
+
+    return top_nums
+
+
+def set_left_nums():
+    left_nums = [
+                [1, 2, 0, 0, 0, 0, 0, 0],
+                [3, 2, 0, 0, 0, 0, 0, 0],
+                [6, 1, 0, 0, 0, 0, 0, 0],
+                [5, 1, 2, 0, 0, 0, 0, 0],
+                [2, 7, 2, 5, 0, 0, 0, 0],
+                [9, 17, 0, 0, 0, 0, 0, 0],
+                [6, 1, 3, 1, 2, 2, 2, 2],
+                [7, 1, 1, 1, 3, 2, 2, 5],
+                [1, 2, 4, 1, 3, 2, 1, 6],
+                [3, 2, 1, 2, 1, 2, 5, 3],
+                [4, 1, 1, 2, 3, 5, 0, 0],
+                [8, 5, 5, 1, 0, 0, 0, 0],
+                [9, 6, 1, 1, 0, 0, 0, 0],
+                [1, 2, 7, 5, 1, 0, 0, 0],
+                [1, 2, 2, 3, 1, 0, 0, 0],
+                [4, 5, 0, 0, 0, 0, 0, 0],
+                [1, 2, 2, 3, 0, 0, 0, 0],
+                [1, 1, 2, 2, 0, 0, 0, 0],
+                [1, 2, 2, 2, 0, 0, 0, 0],
+                [1, 2, 2, 2, 0, 0, 0, 0],
+                ]
+
+    return left_nums
+
+
+def fps_counter():
+    rect = pygame.Rect(WIDTH - 200, 50, 200, 200)
+    pygame.draw.rect(WINDOW, WHITE, rect)
+    fps = str(int(clock.get_fps()))
+    font = pygame.font.SysFont("Corbel", 50)
+    fps_text = font.render(f"FPS: {fps}", True, BLACK)
+    WINDOW.blit(fps_text, (WIDTH - 200, 50))  # Adjust the position as needed
 
 
 def main():
+    """Executed code"""
+
+    pan_active = False
     run = True
-    clock = pygame.time.Clock()
 
-    grid1 = grid(*GRID_SIZE)
-    manual_button = Button(20, 20, 80, 40, 'Manual')
-    automatic_button = Button(20, 70, 80, 40, 'Automatic')
+    # Initialization of static instances
+    plus_button = Button(20, 20, 50, 50, " +")
+    minus_button = Button(20, 90, 50, 50, " -")
+    manual_button = Button(20, 160, 200, 50, "Manual")
+    automatic_button = Button(20, 230, 200, 50, "Automatic")
+    pan_button = Button(20, 300, 80, 50, "Pan")
 
-    manual_button.draw_button()
-    automatic_button.draw_button()
+    buttons = (plus_button, minus_button, manual_button, automatic_button, pan_button)
+
+    rows = 20
+    columns = 30
+
+    grid = Grid(rows, columns)
+    top_nums = Grid(5, columns)
+    left_nums = Grid(rows, 8)
+    mirror_grid = grid.mirror_grid()
+    top_numbers_mirror = top_nums.mirror_grid()
+    left_numbers_mirror = left_nums.mirror_grid()
+    init_top_nums(top_numbers_mirror)
+    init_left_nums(left_numbers_mirror)
+
+    WINDOW.fill(WHITE)
 
     while run:
         clock.tick(60)
 
+        fps_counter()
+
+        # Initialization of dynamic instances
+        outer_cells = grid.init_grid(mirror_grid)
+        top_num_cells = top_nums.init_top_grid(top_numbers_mirror)
+        left_num_cells = left_nums.init_left_grid(left_numbers_mirror)
+
+        # Draw each instance
+        draw_grid(outer_cells)
+        draw_grid(top_num_cells)
+        draw_grid(left_num_cells)
+        draw_numbers(left_num_cells)
+        draw_numbers(top_num_cells)
+
+        # Update buttons
+        render_button(plus_button, Button.refresh)
+        render_button(minus_button, Button.refresh)
+        render_button(manual_button)
+        render_button(automatic_button)
+        render_button(pan_button)
+
+        for row_index, row in enumerate(outer_cells):
+            for cell_index, cell in enumerate(row):
+                if manual_button.is_pressed:
+                    hover(cell)
+                elif automatic_button.is_pressed:
+                    automatic(cell)
+
         for event in pygame.event.get():
+
             if event.type == pygame.QUIT:
                 run = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
 
-                for unit in grid1:
-                    for row in unit:
-                        for cell in row:
+            if event.type == pygame.MOUSEBUTTONDOWN:
 
-                            # Get the position of the click
-                            x, y = event.pos
+                cursor_pos = event.pos
 
-                            if manual_button.is_pressed:
-                                # Check if the click is within the clickable area
-                                if (cell.clickable_area()[0] <= x <= cell.clickable_area()[2] and
-                                        cell.clickable_area()[1]
-                                        <= y <= cell.clickable_area()[3]):
-                                    if event.button == 1:  # Left click
-                                        if not cell.is_filled:
-                                            cell.cell_state(FILL)
-                                        else:
-                                            cell.cell_state(EMPTY)
-                                            cell.cell_state(DOT)
-                                    if event.button == 3:  # Right click
-                                        cell.cell_state(EMPTY)
+                if pan_button.is_pressed and event.button == 1:
+                    pan_active = True
 
-                            if (manual_button.x <= x <= manual_button.x + manual_button.width and
-                                    manual_button.y <= y <= manual_button.y + manual_button.height):
-                                if event.button == 1:
-                                    manual_button.press_button()
-                                    automatic_button.draw_button()
+                # Cell click handler
+                for row in outer_cells:
+                    for cell in row:
+                        if manual_button.is_pressed:
+                            cell_events(event, cursor_pos, cell)
 
-                            if (automatic_button.x <= x <= automatic_button.x + automatic_button.width and
-                                    automatic_button.y <= y <= automatic_button.y + automatic_button.height):
-                                if event.button == 1:
-                                    automatic_button.press_button()
-                                    manual_button.draw_button()
+                button_handler(event, cursor_pos, buttons)
 
-        draw_grid(*GRID_SIZE)
-        for row in grid1:
-            for unit in row:
-                if manual_button.is_pressed:
-                    unit.unit_hover()
+            if event.type == pygame.MOUSEBUTTONUP:
+                if pan_button.is_pressed and event.button == 1:
+                    pan_active = False
 
+            if event.type == pygame.MOUSEMOTION and pan_button.is_pressed and pan_active:
+                pan()
+
+        # Load frame
         pygame.display.update()
 
+        # Safely destruct the updating drawings
+        erase_grid(outer_cells)
+        erase_grid(left_num_cells)
+        erase_grid(top_num_cells)
+        erase_numbers(left_num_cells)
+        erase_numbers(top_num_cells)
+
+        for row, mRow in zip(outer_cells, mirror_grid):
+            for cell, mCell in zip(row, mRow):
+                if cell.is_filled:
+                    mCell.update("fill")
+                    cell.draw(WHITE)
+                else:
+                    mCell.is_filled = False
+                if cell.has_dot:
+                    mCell.update("dot")
+                    cell.draw(WHITE)
+                else:
+                    mCell.has_dot = False
     pygame.quit()
 
 
