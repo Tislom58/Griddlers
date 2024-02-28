@@ -1,12 +1,12 @@
 import pygame
 import random
+import grid
 
 pygame.init()
 clock = pygame.time.Clock()
 
 # Next steps
-# TODO: Create parent class
-# TODO: Fix toggling numbers and fills
+# TODO: Proceed with the algorithm
 
 # Set window
 WIDTH, HEIGHT = 1200, 950
@@ -22,80 +22,6 @@ WHITE = (224, 214, 176)
 BLUE = (100, 149, 237)
 
 
-class Object:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-
-class Cell:
-    init_size = 20
-    gap = 2
-
-    def __init__(self, x, y, size, fill=False, dot=False, number=None):
-
-        # Position
-        self.size = size
-        self.border = size // 10
-        self.inner_size = size - 2 * (self.border + self.gap)
-
-        self.x = x
-        self.y = y
-        self.inner_x = x + self.border + self.gap
-        self.inner_y = y + self.border + self.gap
-
-        self.rect = pygame.Rect(x, y, size, size)
-        self.inner_rect = pygame.Rect(self.inner_x, self.inner_y, self.inner_size, self.inner_size)
-
-        self.is_filled = fill
-        self.has_dot = dot
-        self.number = str(number)
-
-    def draw(self, color):
-        """Draws a filled cell"""
-        pygame.draw.rect(WINDOW, color, self.inner_rect)
-
-    def draw_border(self, color):
-        """Draws a border of a cell"""
-        pygame.draw.rect(WINDOW, color, self.rect, self.border)
-
-    def draw_dot(self, color):
-        """Draws a dot inside the cell"""
-        pygame.draw.circle(WINDOW, color, (self.inner_x + self.inner_size // 2, self.inner_y + self.inner_size // 2), self.inner_size // 10)
-
-    def draw_number(self):
-        """Draws a number inside the cell"""
-        if self.number is not None and not self.number == "0":
-            font = pygame.font.SysFont("Corbel", self.size - 5)
-            text_surface = font.render(self.number, True, BLACK)
-
-            if len(self.number) == 2:
-                WINDOW.blit(text_surface, (self.inner_rect.x + 2, self.inner_rect.y + 2))
-            elif len(self.number) == 1:
-                WINDOW.blit(text_surface, (self.inner_rect.x + 5, self.inner_rect.y + 2))
-
-    def is_in_area(self, mouse_pos):
-        """Returns boolean value whether the cursor is inside the area of the cell"""
-        return self.inner_rect.collidepoint(mouse_pos)
-
-
-class MirrorCell:
-    def __init__(self):
-        self.number = None
-        self.is_filled = False
-        self.has_dot = False
-
-    def update(self, value):
-        if type(value) is int:
-            self.number = value
-        elif value == "fill":
-            self.is_filled = True
-        elif value == "dot":
-            self.has_dot = True
-        else:
-            pass
-
-
 class Button:
     pressed = True
     unpressed = False
@@ -109,6 +35,7 @@ class Button:
         self.text = text
         self.smallfont = pygame.font.SysFont('Corbel', 50)
         self.is_pressed = False
+        self.rect = pygame.Rect(x, y, width, height)
 
     def draw(self):
         """Draws the button"""
@@ -122,69 +49,9 @@ class Button:
         """Sets the button state"""
         self.is_pressed = True if pressed else False
 
-    def is_in_area(self, x, y):
-        """Checks if the area is clicked"""
-        return self.x <= x <= self.x + self.width and self.y <= y <= self.y + self.height
-
-
-class Grid:
-    def __init__(self, rows, columns):
-        self.rows = rows
-        self.columns = columns
-
-    def mirror_grid(self):
-        """Mirrors the grid with values only"""
-        return [[MirrorCell() for j in range(self.rows)] for i in range(self.columns)]
-
-    def init_grid(self, mirror_grid):
-        """Creates a 5x5 2D list"""
-        outer_border = Cell.init_size // 10
-        grid = []
-
-        for i in range(self.columns):
-            row = []
-            for j in range(self.rows):
-                cell = Cell(CENTER[0] + i * (Cell.init_size - outer_border),
-                            CENTER[1] + j * (Cell.init_size - outer_border),
-                            Cell.init_size,
-                            mirror_grid[i][j].is_filled,
-                            mirror_grid[i][j].has_dot)
-                row.append(cell)
-            grid.append(row)
-
-        return grid
-
-    def init_left_grid(self, mirror):
-        outer_border = Cell.init_size // 10
-        grid = []
-
-        for i in range(self.columns):
-            row = []
-            for j in range(self.rows):
-                cell = Cell(CENTER[0] - (Cell.init_size - outer_border) - i * (Cell.init_size - outer_border),
-                            CENTER[1] + j * (Cell.init_size - outer_border),
-                            Cell.init_size,
-                            number=mirror[i][j].number)
-                row.append(cell)
-            grid.append(row)
-
-        return grid
-
-    def init_top_grid(self, mirror):
-        outer_border = Cell.init_size // 10
-        grid = []
-
-        for i in range(self.columns):
-            row = []
-            for j in range(self.rows):
-                cell = Cell(CENTER[0] + i * (Cell.init_size - outer_border),
-                            CENTER[1] - (Cell.init_size - outer_border) - j * (Cell.init_size - outer_border),
-                            Cell.init_size,
-                            number=mirror[i][j].number)
-                row.append(cell)
-            grid.append(row)
-
-        return grid
+    def has_been_pressed(self, event, mouse_pos):
+        """Returns boolean value whether the cursor is inside the area of the cell"""
+        return self.rect.collidepoint(mouse_pos) and event.button == 1
 
 
 def hover(instance):
@@ -200,11 +67,6 @@ def hover(instance):
         instance.draw_dot(BLACK)
 
 
-def button_is_pressed(event, pos, instance):
-    """Checks if button is pressed"""
-    return instance.is_in_area(*pos) and event.button == 1
-
-
 def render_button(instance, refresh=False):
     """Keeps buttons rendered"""
     instance.draw()
@@ -214,30 +76,33 @@ def render_button(instance, refresh=False):
 
 def button_handler(event, pos, buttons):
     """Handles button clicks"""
-    if button_is_pressed(event, pos, buttons[0]):  # Press + button
+    if buttons[0].has_been_pressed(event, pos):  # Press + button
         buttons[0].set_state(Button.pressed)
-        Cell.init_size += 10
-    if button_is_pressed(event, pos, buttons[1]):  # Press - button
+        grid.Cell.init_size += 10
+    if buttons[1].has_been_pressed(event, pos):  # Press - button
         buttons[1].set_state(Button.pressed)
-        Cell.init_size -= 10
-    if button_is_pressed(event, pos, buttons[2]) and not buttons[2].is_pressed:
+        grid.Cell.init_size -= 10
+    if buttons[2].has_been_pressed(event, pos) and not buttons[2].is_pressed:
         buttons[2].set_state(Button.pressed)
         buttons[3].set_state(Button.unpressed)
         buttons[4].set_state(Button.unpressed)
-    elif button_is_pressed(event, pos, buttons[2]) and buttons[2].is_pressed:
+    elif buttons[2].has_been_pressed(event, pos) and buttons[2].is_pressed:
         buttons[2].set_state(Button.unpressed)
-    if button_is_pressed(event, pos, buttons[3]) and not buttons[3].is_pressed:
+    if buttons[3].has_been_pressed(event, pos) and not buttons[3].is_pressed:
         buttons[3].set_state(Button.pressed)
         buttons[2].set_state(Button.unpressed)
         buttons[4].set_state(Button.unpressed)
-    elif button_is_pressed(event, pos, buttons[3]) and buttons[3].is_pressed:
+    elif buttons[3].has_been_pressed(event, pos) and buttons[3].is_pressed:
         buttons[3].set_state(Button.unpressed)
-    if button_is_pressed(event, pos, buttons[4]) and not buttons[4].is_pressed:
+    if buttons[4].has_been_pressed(event, pos) and not buttons[4].is_pressed:
         buttons[4].set_state(Button.pressed)
         buttons[2].set_state(Button.unpressed)
         buttons[3].set_state(Button.unpressed)
-    elif button_is_pressed(event, pos, buttons[4]) and buttons[4].is_pressed:
+    elif buttons[4].has_been_pressed(event, pos) and buttons[4].is_pressed:
         buttons[4].set_state(Button.unpressed)
+
+    for button in buttons:
+        print(button.has_been_pressed(event, pos))
 
 
 def cell_events(event, pos, instance):
@@ -269,38 +134,6 @@ def automatic(instance):
         instance.draw_dot(BLACK)
 
 
-def draw_grid(grid):
-    """Draws grid"""
-    [cell.draw_border(BLACK) for row in grid for cell in row]
-
-
-def erase_grid(grid):
-    """Erases grid"""
-    [cell.draw_border(WHITE) for row in grid for cell in row]
-
-
-def init_left_nums(grid):
-    numbers = set_left_nums()
-    for i, row in enumerate(grid):
-        for j, cell in enumerate(row):
-            cell.number = numbers[j][i]
-
-
-def init_top_nums(grid):
-    numbers = set_top_nums()
-    for row, column in zip(grid, numbers):
-        for cell, number in zip(row, column):
-            cell.number = number
-
-
-def draw_numbers(grid):
-    [cell.draw_number() for row in grid for cell in row]
-
-
-def erase_numbers(grid):
-    [pygame.draw.rect(WINDOW, WHITE, cell.rect) for row in grid for cell in row]
-
-
 def pan():
     """Pans the screen"""
     movement = pygame.mouse.get_rel()
@@ -310,78 +143,13 @@ def pan():
         CENTER[1] += movement[1]
 
 
-def set_top_nums():
-    """Sets top numbers"""
-    top_nums = [
-                [6, 0, 0, 0, 0],
-                [4, 0, 0, 0, 0],
-                [2, 9, 0, 0, 0],
-                [7, 2, 4, 0, 0],
-                [2, 4, 2, 2, 2],
-                [5, 3, 2, 0, 0],
-                [3, 3, 2, 3, 0],
-                [6, 1, 2, 4, 0],
-                [2, 8, 2, 0, 0],
-                [5, 2, 0, 0, 0],
-                [3, 4, 0, 0, 0],
-                [1, 5, 1, 0, 0],
-                [5, 2, 0, 0, 0],
-                [2, 4, 0, 0, 0],
-                [7, 1, 0, 0, 0],
-                [2, 5, 0, 0, 0],
-                [2, 4, 2, 0, 0],
-                [9, 5, 1, 0, 0],
-                [2, 6, 4, 0, 0],
-                [3, 7, 1, 1, 0],
-                [2, 5, 1, 3, 1],
-                [8, 2, 0, 0, 0],
-                [2, 4, 1, 0, 0],
-                [8, 0, 0, 0, 0],
-                [7, 0, 0, 0, 0],
-                [3, 4, 0, 0, 0],
-                [7, 0, 0, 0, 0],
-                [6, 0, 0, 0, 0],
-                [1, 3, 0, 0, 0],
-                [3, 0, 0, 0, 0],
-                ]
-
-    return top_nums
-
-
-def set_left_nums():
-    left_nums = [
-                [1, 2, 0, 0, 0, 0, 0, 0],
-                [3, 2, 0, 0, 0, 0, 0, 0],
-                [6, 1, 0, 0, 0, 0, 0, 0],
-                [5, 1, 2, 0, 0, 0, 0, 0],
-                [2, 7, 2, 5, 0, 0, 0, 0],
-                [9, 17, 0, 0, 0, 0, 0, 0],
-                [6, 1, 3, 1, 2, 2, 2, 2],
-                [7, 1, 1, 1, 3, 2, 2, 5],
-                [1, 2, 4, 1, 3, 2, 1, 6],
-                [3, 2, 1, 2, 1, 2, 5, 3],
-                [4, 1, 1, 2, 3, 5, 0, 0],
-                [8, 5, 5, 1, 0, 0, 0, 0],
-                [9, 6, 1, 1, 0, 0, 0, 0],
-                [1, 2, 7, 5, 1, 0, 0, 0],
-                [1, 2, 2, 3, 1, 0, 0, 0],
-                [4, 5, 0, 0, 0, 0, 0, 0],
-                [1, 2, 2, 3, 0, 0, 0, 0],
-                [1, 1, 2, 2, 0, 0, 0, 0],
-                [1, 2, 2, 2, 0, 0, 0, 0],
-                [1, 2, 2, 2, 0, 0, 0, 0],
-                ]
-
-    return left_nums
-
-
 def fps_counter():
-    rect = pygame.Rect(WIDTH - 200, 50, 200, 200)
+    rect = pygame.Rect(WIDTH - 200, 50, 200, 50)
     pygame.draw.rect(WINDOW, WHITE, rect)
     fps = str(int(clock.get_fps()))
     font = pygame.font.SysFont("Corbel", 50)
     fps_text = font.render(f"FPS: {fps}", True, BLACK)
-    WINDOW.blit(fps_text, (WIDTH - 200, 50))  # Adjust the position as needed
+    WINDOW.blit(fps_text, (WIDTH - 200, 50))
 
 
 def main():
@@ -389,6 +157,8 @@ def main():
 
     pan_active = False
     run = True
+
+    grid.get_center(CENTER)
 
     # Initialization of static instances
     plus_button = Button(20, 20, 50, 50, " +")
@@ -402,40 +172,57 @@ def main():
     rows = 20
     columns = 30
 
-    grid = Grid(rows, columns)
-    top_nums = Grid(5, columns)
-    left_nums = Grid(rows, 8)
-    mirror_grid = grid.mirror_grid()
+    current_grid = grid.Grid(WINDOW, rows, columns)
+    top_nums = grid.Grid(WINDOW, 5, columns)
+    left_nums = grid.Grid(WINDOW, rows, 8)
+    mirror_grid = current_grid.mirror_grid()
     top_numbers_mirror = top_nums.mirror_grid()
     left_numbers_mirror = left_nums.mirror_grid()
-    init_top_nums(top_numbers_mirror)
-    init_left_nums(left_numbers_mirror)
+    current_grid.init_top_nums(top_numbers_mirror)
+    current_grid.init_left_nums(left_numbers_mirror)
 
     WINDOW.fill(WHITE)
+
+    render_button(plus_button, Button.refresh)
+    render_button(minus_button, Button.refresh)
+    render_button(manual_button)
+    render_button(automatic_button)
+    render_button(pan_button)
+
+    outer_cells = current_grid.init_grid(mirror_grid)
+    top_num_cells = top_nums.init_top_grid(top_numbers_mirror)
+    left_num_cells = left_nums.init_left_grid(left_numbers_mirror)
 
     while run:
         clock.tick(60)
 
         fps_counter()
 
-        # Initialization of dynamic instances
-        outer_cells = grid.init_grid(mirror_grid)
-        top_num_cells = top_nums.init_top_grid(top_numbers_mirror)
-        left_num_cells = left_nums.init_left_grid(left_numbers_mirror)
+        grid.get_center(CENTER)
 
-        # Draw each instance
-        draw_grid(outer_cells)
-        draw_grid(top_num_cells)
-        draw_grid(left_num_cells)
-        draw_numbers(left_num_cells)
-        draw_numbers(top_num_cells)
+        # Draw and initialize each instance upon made changes
+        if grid.MirrorCell.last_size is None or not grid.MirrorCell.last_size == grid.Cell.init_size or pan_active:
+            outer_cells = current_grid.init_grid(mirror_grid)
+            top_num_cells = top_nums.init_top_grid(top_numbers_mirror)
+            left_num_cells = left_nums.init_left_grid(left_numbers_mirror)
+
+            current_grid.draw_grid(outer_cells)
+            current_grid.draw_grid(top_num_cells)
+            current_grid.draw_grid(left_num_cells)
+            current_grid.draw_numbers(left_num_cells)
+            current_grid.draw_numbers(top_num_cells)
+
+        grid.MirrorCell.last_size = grid.Cell.init_size
 
         # Update buttons
-        render_button(plus_button, Button.refresh)
-        render_button(minus_button, Button.refresh)
-        render_button(manual_button)
-        render_button(automatic_button)
-        render_button(pan_button)
+        for button in buttons:
+            # pygame.draw.rect(WINDOW, BLUE, button.rect)
+            if button.is_pressed:
+                render_button(plus_button, Button.refresh)
+                render_button(minus_button, Button.refresh)
+                render_button(manual_button)
+                render_button(automatic_button)
+                render_button(pan_button)
 
         for row_index, row in enumerate(outer_cells):
             for cell_index, cell in enumerate(row):
@@ -471,15 +258,19 @@ def main():
             if event.type == pygame.MOUSEMOTION and pan_button.is_pressed and pan_active:
                 pan()
 
+        if not pan_button.is_pressed:
+            pan_active = False
+
         # Load frame
         pygame.display.update()
 
         # Safely destruct the updating drawings
-        erase_grid(outer_cells)
-        erase_grid(left_num_cells)
-        erase_grid(top_num_cells)
-        erase_numbers(left_num_cells)
-        erase_numbers(top_num_cells)
+        if grid.MirrorCell.last_size is None or not grid.MirrorCell.last_size == grid.Cell.init_size or pan_active:
+            current_grid.erase_grid(outer_cells)
+            current_grid.erase_grid(left_num_cells)
+            current_grid.erase_grid(top_num_cells)
+            current_grid.erase_numbers(WINDOW, left_num_cells)
+            current_grid.erase_numbers(WINDOW, top_num_cells)
 
         for row, mRow in zip(outer_cells, mirror_grid):
             for cell, mCell in zip(row, mRow):

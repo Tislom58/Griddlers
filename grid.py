@@ -1,100 +1,242 @@
 import pygame
 
+# RGB color presets
+BLACK = (47, 45, 52)
+WHITE = (224, 214, 176)
+BLUE = (100, 149, 237)
+
+CENTER = (0, 0)
+
+
+def get_center(center):
+    global CENTER
+    CENTER = center
+
+
 class Cell:
-    def __init__(self, x, y):
-        # Define init coordinates
-        self.coordinates = x, y
-        self.fill_coordinates = x + CELL_BORDER + CELL_GAP, y + CELL_BORDER + CELL_GAP
+    init_size = 20
+    gap = 2
 
-        # Filling parameters
-        self.filled_side = CELL_SIDE - 2 * (CELL_BORDER + CELL_GAP)
+    def __init__(self, screen, x, y, size, fill=False, dot=False, number=None):
+
+        self.screen = screen
+
+        # Position
+        self.size = size
+        self.border = size // 10
+        self.inner_size = size - 2 * (self.border + self.gap)
+
+        self.x = x
+        self.y = y
+        self.inner_x = x + self.border + self.gap
+        self.inner_y = y + self.border + self.gap
+
+        self.rect = pygame.Rect(x, y, size, size)
+        self.inner_rect = pygame.Rect(self.inner_x, self.inner_y, self.inner_size, self.inner_size)
+
+        self.is_filled = fill
+        self.has_dot = dot
+        self.number = str(number)
+
+    def draw(self, color):
+        """Draws a filled cell"""
+        pygame.draw.rect(self.screen, color, self.inner_rect)
+
+    def draw_border(self, color):
+        """Draws a border of a cell"""
+        pygame.draw.rect(self.screen, color, self.rect, self.border)
+
+    def draw_dot(self, color):
+        """Draws a dot inside the cell"""
+        pygame.draw.circle(self.screen, color,
+                           (self.inner_x + self.inner_size // 2, self.inner_y + self.inner_size // 2),
+                           self.inner_size // 10)
+
+    def draw_number(self):
+        """Draws a number inside the cell"""
+        if self.number is not None and not self.number == "0":
+            font = pygame.font.SysFont("Corbel", self.size - 5)
+            text_surface = font.render(self.number, True, BLACK)
+
+            if len(self.number) == 2:
+                self.screen.blit(text_surface, (self.inner_rect.x + 2, self.inner_rect.y + 2))
+            elif len(self.number) == 1:
+                self.screen.blit(text_surface, (self.inner_rect.x + 5, self.inner_rect.y + 2))
+
+    def is_in_area(self, mouse_pos):
+        """Returns boolean value whether the cursor is inside the area of the cell"""
+        return self.inner_rect.collidepoint(mouse_pos)
+
+
+class MirrorCell:
+    last_size = None
+
+    def __init__(self):
+        self.number = None
         self.is_filled = False
-        self.input_rect = pygame.Rect(x + 2, y + 2, CELL_SIDE - 4, CELL_SIDE - 4)
+        self.has_dot = False
 
-        # Default values for number input
-        self.input_text = ''
-        self.active = False
-
-        # Define coordinates for sides
-        self.left_side = (x, y), (x, y + (CELL_SIDE - CELL_BORDER))
-        self.right_side = (x + (CELL_SIDE - CELL_BORDER), y), (x + (CELL_SIDE - CELL_BORDER), y + (CELL_SIDE - CELL_BORDER))
-        self.upper_side = (x, y), (x + (CELL_SIDE - CELL_BORDER), y)
-        self.bottom_side = (x, y + (CELL_SIDE - CELL_BORDER)), (x + (CELL_SIDE - CELL_BORDER), y + (CELL_SIDE - CELL_BORDER))
-
-    def draw_cell(self):
-        #  Draws an empty cell
-        pygame.draw.rect(WINDOW, WHITE, (*self.coordinates, CELL_SIDE, CELL_SIDE), CELL_BORDER)
-
-    def draw_numcell(self, vertical=False):
-        # Draws a cell with fill number
-        # print(self.upper_side[0][0], self.upper_side[1][0])
-        if not vertical:
-            pygame.draw.line(WINDOW, WHITE, self.left_side[0], self.left_side[1], CELL_BORDER)
-            pygame.draw.line(WINDOW, WHITE, self.right_side[0], self.right_side[1], CELL_BORDER)
-            for i in range(0, (int(self.bottom_side[1][0]) - CELL_BORDER) - (int(self.bottom_side[0][0]) + CELL_BORDER), 4):
-                pygame.draw.line(WINDOW, WHITE, (self.bottom_side[0][0] + CELL_BORDER + i + 1,
-                                                 self.bottom_side[0][1]),
-                                 (self.bottom_side[0][0] + CELL_BORDER + i + CELL_GAP,
-                                  self.bottom_side[0][1]), CELL_BORDER)
-        else:
-            pygame.draw.line(WINDOW, WHITE, self.upper_side[0], self.upper_side[1], CELL_BORDER)
-            pygame.draw.line(WINDOW, WHITE, self.bottom_side[0], self.bottom_side[1], CELL_BORDER)
-            for i in range(0, (int(self.right_side[1][1]) - CELL_BORDER) - (int(self.right_side[0][1]) + CELL_BORDER), 4):
-                pygame.draw.line(WINDOW, WHITE, (self.right_side[0][0],
-                                                 self.right_side[0][1] + CELL_BORDER + i + 1),
-                                 (self.right_side[0][0],
-                                  self.right_side[0][1] + CELL_BORDER + i + CELL_GAP), CELL_BORDER)
-
-    def cell_state(self, state):
-        #  Changes the state of the cell - empty / filled / dotted / hovered over
-        if state == DOT:
-            pygame.draw.circle(WINDOW, state, (self.coordinates[0] + CELL_SIDE / 2, self.coordinates[1] +
-                                               CELL_SIDE / 2), 2)
-        else:
-            pygame.draw.rect(WINDOW, state, (*self.fill_coordinates, self.filled_side, self.filled_side))
-
-        if state == FILL or state == DOT:
+    def update(self, value):
+        if type(value) is int:
+            self.number = value
+        elif value == "fill":
             self.is_filled = True
-        elif state == HOVER:
+        elif value == "dot":
+            self.has_dot = True
+        else:
             pass
-        else:
-            self.is_filled = False
 
-    def clickable_area(self, x, y):
-        #  Defines coordinates for clicking the cell
-        return (self.fill_coordinates[0] <= x <= self.fill_coordinates[0] + self.filled_side and self.fill_coordinates[1]
-                <= y <= self.fill_coordinates[1] + self.filled_side)
 
-    def hover_area(self):
-        #  Defines the area that appears blue when cell is hovered over
-        hover_area = *self.fill_coordinates, self.filled_side, self.filled_side
-        return hover_area
+class Grid:
+    def __init__(self, screen, rows, columns):
+        self.rows = rows
+        self.columns = columns
+        self.screen = screen
 
-    # def set_text(self, active, input_text):
-    #     self.input_text = input_text
+    def mirror_grid(self):
+        """Mirrors the grid with values only"""
+        return [[MirrorCell() for _ in range(self.rows)] for _ in range(self.columns)]
 
-    def display_num(self):
-        # Displays instruction number
+    def init_grid(self, mirror_grid):
+        """Creates a 5x5 2D list"""
+        outer_border = Cell.init_size // 10
+        grid = []
 
-        # pygame.draw.rect(WIN, BLUE, self.input_rect)
-        # pygame.draw.rect(WIN, DOT, self.input_rect)
+        for i in range(self.columns):
+            row = []
+            for j in range(self.rows):
+                cell = Cell(self.screen,
+                            CENTER[0] + i * (Cell.init_size - outer_border),
+                            CENTER[1] + j * (Cell.init_size - outer_border),
+                            Cell.init_size,
+                            mirror_grid[i][j].is_filled,
+                            mirror_grid[i][j].has_dot)
+                row.append(cell)
+            grid.append(row)
 
-        # Set color
-        # color_active = BLUE
-        # color_passive = BLACK
-        # color = color_active if self.active else color_passive
+        return grid
 
-        # pygame.draw.rect(WIN, color, self.input_rect)
+    def init_left_grid(self, mirror):
+        outer_border = Cell.init_size // 10
+        grid = []
 
-        if self.active:
-            pygame.draw.rect(WINDOW, BLUE, self.input_rect)
-        else:
-            pygame.draw.rect(WINDOW, BLACK, self.input_rect)
-        print(self.active)
+        for i in range(self.columns):
+            row = []
+            for j in range(self.rows):
+                cell = Cell(self.screen,
+                            CENTER[0] - (Cell.init_size - outer_border) - i * (Cell.init_size - outer_border),
+                            CENTER[1] + j * (Cell.init_size - outer_border),
+                            Cell.init_size,
+                            number=mirror[i][j].number)
+                row.append(cell)
+            grid.append(row)
 
-        text_surface = default_font.render(self.input_text, True, WHITE)
+        return grid
 
-        if len(self.input_text) == 2:
-            WINDOW.blit(text_surface, (self.input_rect.x + 1, self.input_rect.y + 2))
-        else:
-            WINDOW.blit(text_surface, (self.input_rect.x + 5, self.input_rect.y + 2))
+    def init_top_grid(self, mirror):
+        outer_border = Cell.init_size // 10
+        grid = []
+
+        for i in range(self.columns):
+            row = []
+            for j in range(self.rows):
+                cell = Cell(self.screen,
+                            CENTER[0] + i * (Cell.init_size - outer_border),
+                            CENTER[1] - (Cell.init_size - outer_border) - j * (Cell.init_size - outer_border),
+                            Cell.init_size,
+                            number=mirror[i][j].number)
+                row.append(cell)
+            grid.append(row)
+
+        return grid
+
+    def draw_grid(self, grid):
+        """Draws grid"""
+        [cell.draw_border(BLACK) for row in grid for cell in row]
+
+    def erase_grid(self, input_grid):
+        """Erases grid"""
+        [cell.draw_border(WHITE) for row in input_grid for cell in row]
+
+    def init_left_nums(self, input_grid):
+        numbers = set_left_nums()
+        for i, row in enumerate(input_grid):
+            for j, cell in enumerate(row):
+                cell.number = numbers[j][i]
+
+    def init_top_nums(self, input_grid):
+        numbers = set_top_nums()
+        for row, column in zip(input_grid, numbers):
+            for cell, number in zip(row, column):
+                cell.number = number
+
+    def draw_numbers(self, grid):
+        [cell.draw_number() for row in grid for cell in row]
+
+    def erase_numbers(self, screen, grid):
+        [pygame.draw.rect(screen, WHITE, cell.rect) for row in grid for cell in row]
+
+
+def set_top_nums():
+    """Sets top numbers"""
+    top_nums = [
+        [6, 0, 0, 0, 0],
+        [4, 0, 0, 0, 0],
+        [2, 9, 0, 0, 0],
+        [7, 2, 4, 0, 0],
+        [2, 4, 2, 2, 2],
+        [5, 3, 2, 0, 0],
+        [3, 3, 2, 3, 0],
+        [6, 1, 2, 4, 0],
+        [2, 8, 2, 0, 0],
+        [5, 2, 0, 0, 0],
+        [3, 4, 0, 0, 0],
+        [1, 5, 1, 0, 0],
+        [5, 2, 0, 0, 0],
+        [2, 4, 0, 0, 0],
+        [7, 1, 0, 0, 0],
+        [2, 5, 0, 0, 0],
+        [2, 4, 2, 0, 0],
+        [9, 5, 1, 0, 0],
+        [2, 6, 4, 0, 0],
+        [3, 7, 1, 1, 0],
+        [2, 5, 1, 3, 1],
+        [8, 2, 0, 0, 0],
+        [2, 4, 1, 0, 0],
+        [8, 0, 0, 0, 0],
+        [7, 0, 0, 0, 0],
+        [3, 4, 0, 0, 0],
+        [7, 0, 0, 0, 0],
+        [6, 0, 0, 0, 0],
+        [1, 3, 0, 0, 0],
+        [3, 0, 0, 0, 0],
+    ]
+
+    return top_nums
+
+
+def set_left_nums():
+    left_nums = [
+        [1, 2, 0, 0, 0, 0, 0, 0],
+        [3, 2, 0, 0, 0, 0, 0, 0],
+        [6, 1, 0, 0, 0, 0, 0, 0],
+        [5, 1, 2, 0, 0, 0, 0, 0],
+        [2, 7, 2, 5, 0, 0, 0, 0],
+        [9, 17, 0, 0, 0, 0, 0, 0],
+        [6, 1, 3, 1, 2, 2, 2, 2],
+        [7, 1, 1, 1, 3, 2, 2, 5],
+        [1, 2, 4, 1, 3, 2, 1, 6],
+        [3, 2, 1, 2, 1, 2, 5, 3],
+        [4, 1, 1, 2, 3, 5, 0, 0],
+        [8, 5, 5, 1, 0, 0, 0, 0],
+        [9, 6, 1, 1, 0, 0, 0, 0],
+        [1, 2, 7, 5, 1, 0, 0, 0],
+        [1, 2, 2, 3, 1, 0, 0, 0],
+        [4, 5, 0, 0, 0, 0, 0, 0],
+        [1, 2, 2, 3, 0, 0, 0, 0],
+        [1, 1, 2, 2, 0, 0, 0, 0],
+        [1, 2, 2, 2, 0, 0, 0, 0],
+        [1, 2, 2, 2, 0, 0, 0, 0],
+    ]
+
+    return left_nums
